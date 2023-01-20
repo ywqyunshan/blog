@@ -54,7 +54,7 @@ URL: "/2022/01/19/"
 <!--more-->
 
 ## 二 架构
-![Android图形架构](/static/img/android%E5%9B%BE%E5%BD%A2%E6%9E%B6%E6%9E%84.png)
+![Android图形架构](/img/android图形架构.png)
 
 ```
 * 各层源码仓库地址：
