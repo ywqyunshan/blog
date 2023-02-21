@@ -53,6 +53,8 @@ URL: "/2022/01/19/"
   * [DRM/KMS for Android](https://lpc.events/event/5/contributions/319/attachments/442/696/Android_DRM_KMS_Update_XDC2019.pdf)
   * [drm_hwcomposer](https://static.linaro.org/connect/yvr18/presentations/yvr18-204.pdf)
   * [Graphics Stack Update](https://static.linaro.org/connect/bkk16/Presentations/Wednesday/BKK16-315.pdf)
+
+* [Android Q SurfaceFlinger合成](https://wizzie.top/Blog/2020/10/31/2020/201031_android_SurfaceFlinger2/)
 <!--more-->
 
 ## 二 架构
@@ -63,7 +65,8 @@ URL: "/2022/01/19/"
 
 ![Android图形架构](/img/android图形架构.png)
 
-### 2.2 各模块源码
+### 2.2 模块源码
+
 ```
 * 各层源码仓库地址：
 * App 层:frameworks/base/core/java
@@ -90,8 +93,20 @@ hardware/libhardware/modules/hwcomposer/
 * 厂商实现：黑盒子以so方式提供，google仓库有部分开源实现
 hardware/qcom/display/msm8084/libgralloc/
 hardware/qcom/display/msm8084/libhwcomposer/
+```
 
 ## 三 图形系统文章系列目录
+1.Android图形系统-整体架构
+
+2.[Android图形系统-窗口子系统（窗口）]()
+
+3.Android图形系统-渲染子系统
+
+4.Android图形系统-窗口子系统（合成）
+
+5.Android图形系统-显示子系统
+
+6.Android图形系统-vsync机制
 
 
 ## 四 Q/A
