@@ -11,10 +11,10 @@ tags:
     - Istio 
 
 categories: [ Tech ]
-URL: "/2022/01/19/"
+URL: "/2023/01/19/"
 ---
 
-> Android系统源码繁杂，庞大，网上分析文章很多，本文结合Android12 源码和一些优秀的文章整理而成。
+> Android系统源码繁杂，庞大，网上分析文章很多，本文结合Android11 源码和一些优秀的文章整理而成。
 <!--more-->
 
 ## 一 前言
@@ -55,6 +55,7 @@ URL: "/2022/01/19/"
   * [Graphics Stack Update](https://static.linaro.org/connect/bkk16/Presentations/Wednesday/BKK16-315.pdf)
 
 * [Android Q SurfaceFlinger合成](https://wizzie.top/Blog/2020/10/31/2020/201031_android_SurfaceFlinger2/)
+* [内存管理 —— ION](https://kernel.meizu.com/memory%20management%20-%20ion.html)
 <!--more-->
 
 ## 二 架构
@@ -62,6 +63,14 @@ URL: "/2022/01/19/"
 * 从纵向来看，自上而下分为5层：应用层->Framework->Hal->Linux内核->硬件。其中Framework层有分为Java和Native。
 * 从横向来看，分为窗口子系统,渲染子系统,显示子系统。其中窗口子系统有分为窗口管理器和合成管理器。
 后面章节会按照窗口子系统-窗口管理器-->渲染子系统-->窗口子系统-合成管理器-->显示子系统路线梳理文章
+
+### 2.2 整体架构
+* 1.首先app层和Java Framework层和NatvieFramework层连接，创建一个窗口；
+* 2.然后App进程收到vsync-app信号后，向NativeFramework层申请buffer，NativeFramework收到请求后，继续向hal层申请共享内存，最后通过层层回传句柄给应用进程；
+* 3.接着，应用层构建Display list数据并通过厂商提供的opengl库走gpu绘制；
+* 4.绘制完成后，提交buffer；
+* 5.接着，sf进程收到vsync-sf信号后，检查layer，并创建hwc layer，并根据hwc layer的合成方式，先gpu合成，后hwc合成，最后送显。
+
 
 ![Android图形架构](/img/android图形架构.png)
 
@@ -98,16 +107,15 @@ hardware/qcom/display/msm8084/libhwcomposer/
 ## 三 图形系统文章系列目录
 1.Android图形系统-整体架构
 
-2.[Android图形系统-窗口子系统（窗口）]()
+2.[Android图形系统-窗口子系统-窗口]()
 
-3.Android图形系统-渲染子系统
+3.[Android图形系统-渲染子系统]
 
-4.Android图形系统-窗口子系统（合成）
+4.[Android图形系统-窗口子系统-合成]()
 
 5.Android图形系统-显示子系统
 
 6.Android图形系统-vsync机制
-
 
 ## 四 Q/A
 //todo

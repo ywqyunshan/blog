@@ -9,13 +9,12 @@ date:       2023-02-04
 published: true 
 tags:
     - Istio 
-
 categories: [ Tech ]
-URL: "/2022/02/04/"
+URL: "/2023/02/04/"
 ---
 
 > 对于图形系统而言，
-首先要有一个窗口（自上而下每层对应的概念不同），接下来在窗口中拿到buffer去渲染，最后合成图层并送显，本片主要讲一下，如何获取一个窗口，以及合成。
+首先要有一个窗口（自上而下每层对应的概念不同），接下来在窗口中申请buffer并渲染，最后合成图层并送显，本篇主要讲一下，如何获取一个窗口，以及合成时创建HWC2：Layer的流程。
 
 
 ## 一 窗口子系统架构
@@ -32,7 +31,7 @@ Android中的窗口是个抽象概念：本质上是一块画布，但是没有�
 * Java Framework层：
     对应创建windowState和应用层的window对应，但是SurfaceView没有这个概念。
 * Native Framework层：
-  * client：Surface
+  * client：Surface/ANativeWindow
   * server（SurfaceFligner）：Layer
 * Hal层:
   * client：HWC2::Layer
@@ -53,14 +52,13 @@ Android中的窗口是个抽象概念：本质上是一块画布，但是没有�
 .tg .tg-uzvj{border-color:inherit;font-weight:bold;text-align:center;vertical-align:middle}
 .tg .tg-7btt{border-color:inherit;font-weight:bold;text-align:center;vertical-align:top}
 .tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
-.tg .tg-0lax{text-align:left;vertical-align:top}
 </style>
-<table class="tg" style="undefined;table-layout: fixed; width: 1529px">
+<table class="tg" style="undefined;table-layout: fixed; width: 1530px">
 <colgroup>
 <col style="width: 100.333333px">
 <col style="width: 116.333333px">
 <col style="width: 366.333333px">
-<col style="width: 310.666666px">
+<col style="width: 311.333333px">
 <col style="width: 68.333333px">
 <col style="width: 162.333333px">
 <col style="width: 284.333333px">
@@ -120,7 +118,7 @@ Android中的窗口是个抽象概念：本质上是一块画布，但是没有�
   <tr>
     <td class="tg-0pky">Client</td>
     <td class="tg-0pky" colspan="2">frameworks/native/libs/gui/Surface.cpp<br>frameworks/native/libs/gui/SurfaceControl.cpp<br>frameworks/native/libs/gui/SurfaceComposerClient.cppframeworks/native/libs/gui/SurfaceControl.cpp</td>
-    <td class="tg-0pky" colspan="2">http://system/lib64/libgui.so</td>
+    <td class="tg-0pky" colspan="2">system/lib64/libgui.so</td>
     <td class="tg-0pky"></td>
   </tr>
   <tr>
@@ -137,37 +135,37 @@ Android中的窗口是个抽象概念：本质上是一块画布，但是没有�
     <td class="tg-0pky"></td>
   </tr>
   <tr>
-    <td class="tg-0lax">Server-HWC</td>
-    <td class="tg-0lax" colspan="2">hardware/interfaces/graphics/composer/2.1/default<br></td>
+    <td class="tg-0pky">Server-HWC</td>
+    <td class="tg-0pky" colspan="2">hardware/interfaces/graphics/composer/2.1/default<br></td>
     <td class="tg-0pky"></td>
-    <td class="tg-0lax" colspan="2">vendor/lib64/hw/android.hardware.graphics.composer@2.1-impl.so<br>vendor/bin/hw/android.hardware.graphics.composer@2.1-service<br></td>
-    <td class="tg-0lax"></td>
-  </tr>
-  <tr>
-    <td class="tg-0lax">hwc实现</td>
-    <td class="tg-0lax">hardware/libhardware/modules/hwcomposer/hwcomposer.cpp（HWC1）<br>external/drm_hwcomposer/（HWC2 三方开源实现）</td>
-    <td class="tg-0lax">hardware/qcom/display/msm8226/libhwcomposer/hwc.cpp(HWC1)<br><br>hardware/qcom/sdm845/display/sdm/libs/hwc2/(HWC2)</td>
-    <td class="tg-0lax"></td>
-    <td class="tg-0lax">hwcomposer.default.so(HWC1)<br>hwcomposer.drm.so(HWC2)</td>
-    <td class="tg-0lax">vendor/lib64/hw/hwcomposer.msmxxx,so(HWC1)<br>vendor/lib64/hw/hwcomposer.sdmxxx.so(HWC2)</td>
-    <td class="tg-0lax">高通的so都是闭源的，高通只开放了部分源码仅供参考，以高通官方文档为准</td>
-  </tr>
-  <tr>
-    <td class="tg-0lax">drm接口层</td>
-    <td class="tg-0lax" colspan="2">external/libdrm/libkms/</td>
-    <td class="tg-0lax"></td>
-    <td class="tg-0lax" colspan="2">vendor/lib64/libdrm.so</td>
-    <td class="tg-0lax"></td>
-  </tr>
-  <tr>
-    <td class="tg-0lax">内核层</td>
-    <td class="tg-0lax">DRM-KMS</td>
-    <td class="tg-0lax">待确定</td>
-    <td class="tg-0lax">common/drivers/gpu/drm/msm/</td>
+    <td class="tg-0pky" colspan="2">vendor/lib64/android.hardware.graphics.composer@2.1.so<br>vendor/lib64/hw/android.hardware.graphics.composer@2.1-impl.so<br>vendor/bin/hw/android.hardware.graphics.composer@2.1-service<br></td>
     <td class="tg-0pky"></td>
-    <td class="tg-0lax">待确定</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">hwc实现</td>
+    <td class="tg-0pky">hardware/libhardware/modules/hwcomposer/hwcomposer.cpp（HWC1）<br>external/drm_hwcomposer/（HWC2 三方开源实现）</td>
+    <td class="tg-0pky">hardware/qcom/display/msm8226/libhwcomposer/hwc.cpp(HWC1)<br><br>hardware/qcom/sdm845/display/sdm/libs/hwc2/(HWC2)</td>
+    <td class="tg-0pky"></td>
+    <td class="tg-0pky">hwcomposer.default.so(HWC1)<br>hwcomposer.drm.so(HWC2)</td>
+    <td class="tg-0pky">vendor/lib64/hw/hwcomposer.msmxxx,so(HWC1)<br>vendor/lib64/hw/hwcomposer.sdmxxx.so(HWC2)</td>
+    <td class="tg-0pky">高通的so都是闭源的，高通只开放了部分源码仅供参考，以高通官方文档为准</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">drm接口层</td>
+    <td class="tg-0pky" colspan="2">external/libdrm/libkms/</td>
+    <td class="tg-0pky"></td>
+    <td class="tg-0pky" colspan="2">vendor/lib64/libdrm.so</td>
+    <td class="tg-0pky"></td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">内核层</td>
+    <td class="tg-0pky">DRM-KMS</td>
     <td class="tg-0pky">待确定</td>
-    <td class="tg-0lax"></td>
+    <td class="tg-0pky">common/drivers/gpu/drm/msm/</td>
+    <td class="tg-0pky"></td>
+    <td class="tg-0pky">待确定</td>
+    <td class="tg-0pky">待确定</td>
+    <td class="tg-0pky"></td>
   </tr>
 </tbody>
 </table>
@@ -247,7 +245,7 @@ void scheduleTraversals() {
 void doTraversal() {
      if (mTraversalScheduled) {
          mTraversalScheduled = false;
-         // 调用removeSyncBarrier及时移除主线程MessageQueue中的Barrier同步栏删，以避免主线程发生“假死”
+
          mHandler.getLooper().getQueue().removeSyncBarrier(mTraversalBarrier);
          ...
         // 1.执行具体的绘制任务
@@ -272,13 +270,19 @@ private void performTraversals() {
     // 1.2 第一次执行traversals绘制任务时，Binder调用访问系统窗口管理服务WMS的relayoutWindow接口，实现WMS计算应用窗口尺寸并向系统surfaceflinger正式申请Surface“画布”操作
          relayoutResult = relayoutWindow(params, viewVisibility, insetsPending);
      }
+     ....
+     //1.3 将surface通过RenderProxy传递给RenderThread
+     hwInitialized = mAttachInfo.mThreadedRenderer.initialize(mSurface);
+     ...
+     //1.4 app层开始走绘制流程
+     performDraw()；
      ...
 }
 
 private int relayoutWindow(WindowManager.LayoutParams params, int viewVisibility,
             boolean insetsPending) throws RemoteException {
         ...
-        // 1.2.1通过Binder IPC访问系统WMS服务的relayout接口，申请Surface“画布”操作
+        // 1.2.1通过Binder IPC访问系统WMS服务的relayout接口，申请Surface
         int relayoutResult = mWindowSession.relayout(mWindow, mSeq, params,
                 (int) (mView.getMeasuredWidth() * appScale + 0.5f),
                 (int) (mView.getMeasuredHeight() * appScale + 0.5f), viewVisibility,
@@ -501,7 +505,7 @@ int32_t HWCSession::CreateLayer(hwc2_device_t *device, hwc2_display_t display,
   return CallDisplayFunction(device, display, &HWCDisplay::CreateLayer, out_layer_id);
 }
 ```
-### 3.6 接3.4output类的present(args)方法，最终合成。（合成篇讲解）
+### 3.6 接3.4 output类的present(args)方法，最终合成。（合成篇讲解）
 
 有2种合成类型，一是client合成（gpu合成，会单独创建一个FramebufferSuface队列，直接绘制多个buffer到屏幕，最终给到HWC和其他overlayer一起合成，会单独讲解），两一个是hwc合成。
 
