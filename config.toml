@@ -116,6 +116,7 @@ vars = ["title", "summary", "date", "publishdate", "expirydate", "permalink"]
 params = ["categories", "tags"] 
 
 [markup]
+  defaultMarkdownHandler = "goldmark"
   [markup.tableOfContents]
     endLevel = 2
     startLevel = 1
