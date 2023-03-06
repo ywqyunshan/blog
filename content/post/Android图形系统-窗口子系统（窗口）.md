@@ -1,7 +1,7 @@
 ---
 layout:     post
 
-title:      "Android图形系统-窗口子系统"
+title:      "Android图形系统-窗口子系统-窗口"
 subtitle:   "窗口管理"
 excerpt: ""
 author:     "iigeoywq button"
@@ -345,7 +345,7 @@ status_t createSurface(const String8& name, uint32_t width, uint32_t height, Pix
 ```
 #### 3.2.4 sf测创建layer和app进程的surface一一对应
 接3.2.3来到Surfaceflinger进程，在sf测创建layer和bufferqueue对象，最后WMS的createSurfaceControl方法中是通过getSurfaceControl将SurfaceControll传出来的给到app进程共用。
-![SF创建layer过程](img/sf%E5%88%9B%E5%BB%BAsurface.jpg)
+![SF创建layer过程](/static/img/sf%E5%88%9B%E5%BB%BAsurface.jpg)
 ```
 /*frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp*/
 status_t SurfaceFlinger::createLayer(const String8& name, const sp<Client>& client, uint32_t w,

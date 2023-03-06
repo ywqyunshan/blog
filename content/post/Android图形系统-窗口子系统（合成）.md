@@ -1,7 +1,7 @@
 ---
 layout:     post
 
-title:      "Android图形系统-窗口子系统"
+title:      "Android图形系统-窗口子系统-合成"
 subtitle:   "合成"
 excerpt: ""
 author:     "iigeoywq button"
@@ -17,8 +17,8 @@ URL: "/2023/03/03/"
 ## 一 窗口子系统（合成）架构
 合成主要是在SF和HWC测完成,先说几个概念。
 |  SF    | HWC Client  | HWC Server| 备注|
-|  ----  | ----  |----|-----|
-|   | HWC2::Device  |hw_device_t|dpu的抽象|
+|  ----  | ----        |----       |-----|
+|        | HWC2::Device  |hw_device_t|dpu的抽象|
 |DisplayDevice |HWC2::Display  | hw_display_t |显示屏幕抽象（物理屏幕或者虚拟显示屏）|
 |Layer|HWC2::Layer |hw_layer_t|叠加图形抽象|
 
