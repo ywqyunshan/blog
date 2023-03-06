@@ -17,7 +17,7 @@ URL: "/2023/02/04/"
 首先要有一个窗口（自上而下每层对应的概念不同），接下来在窗口中申请buffer并渲染，最后合成图层并送显，本篇主要讲一下，如何获取一个窗口，以及合成时创建HWC2：Layer的流程。
 
 
-## 一 窗口子系统架构
+## 一 窗口子系统（窗口）架构
 Android中的窗口是个抽象概念：本质上是一块画布，但是没有申请buffer，绘制的时候才会申请buffer，但是合成的时候，是已经渲染完成的layer（见渲染篇的代码分析）。
 
 纵向来说每层都有个对应的概念，依次为Window(抽象概念）-->WindowState-->Surface-->Layer-->hwc2_layer_t
@@ -303,9 +303,121 @@ private int relayoutWindow(WindowManager.LayoutParams params, int viewVisibility
 ```
 ### 3.2.3 jni调用创建surface
 
-接3.2.2 来到wms进程，最终通过jni调用（android_view_SurfaceControl类），来到native cleint端（libgui库）创建SurfaceComposerClient对象并和surfaceflinger进程 connect，在sf测创建layer和bufferqueue对象，最后WMS的createSurfaceControl方法中是通过getSurfaceControl将SurfaceControll传出来的给到app进程共用。
-参考[Android画面显示流程分析(4)](https://www.jianshu.com/p/7a18666a43ce)7.1小节。同时引用沧浪之水的一张图看一下。
+接3.2.2 来到wms进程，最终通过jni调用（android_view_SurfaceControl类），来到native cleint端（libgui库）创建SurfaceComposerClient对象并和surfaceflinger进程 connect。
+```
+/*frameworks/base/core/jni/android_view_SurfaceControl.cpp*/
+static jlong nativeCreate(JNIEnv* env, jclass clazz, jobject sessionObj,
+        jstring nameStr, jint w, jint h, jint format, jint flags, jlong parentObject,
+        jobject metadataParcel) {
+    ScopedUtfChars name(env, nameStr);//Surface名字， 在SurfaceFlinger侧就是Layer的名字
+    ......
+    sp<SurfaceComposerClient> client;
+    ......
+    status_t err = client->createSurfaceChecked(
+            String8(name.c_str()), w, h, format, &surface, flags, parent, std::move(metadata));
+    ......
+}
+
+/*frameworks/native/libs/gui/SurfaceComposerClient.cpp*/
+status_t SurfaceComposerClient::createSurfaceChecked(const String8& name, uint32_t w, uint32_t h,
+                                                     PixelFormat format,
+                                                     sp<SurfaceControl>* outSurface, uint32_t flags,
+                                                     SurfaceControl* parent, LayerMetadata metadata,
+                                                     uint32_t* outTransformHint) {
+      ......
+      err = mClient->createSurface(name, w, h, format, flags, parentHandle, std::move(metadata),
+                                     &handle, &gbp, &transformHint);
+      ......
+｝
+开始binder跨进程调用
+/frameworks/native/libs/gui/ISurfaceComposerClient.cpp*/
+status_t createSurface(const String8& name, uint32_t width, uint32_t height, PixelFormat format,
+                           uint32_t flags, const sp<IBinder>& parent, LayerMetadata metadata,
+                           sp<IBinder>* handle, sp<IGraphicBufferProducer>* gbp,
+                           uint32_t* outTransformHint) override {
+     return callRemote<decltype(&ISurfaceComposerClient::createSurface)>(Tag::CREATE_SURFACE,
+                               name, width, height,
+                               format, flags, parent,
+                               std::move(metadata),
+                               handle, gbp,
+                               outTransformHint);
+}
+```
+### 3.2.4 sf测创建layer和app进程的surface一一对应
+接3.2.3来到Surfaceflinger进程，在sf测创建layer和bufferqueue对象，最后WMS的createSurfaceControl方法中是通过getSurfaceControl将SurfaceControll传出来的给到app进程共用。
 ![SF创建layer过程](img/sf%E5%88%9B%E5%BB%BAsurface.jpg)
+```
+/*frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp*/
+status_t SurfaceFlinger::createLayer(const String8& name, const sp<Client>& client, uint32_t w,
+                                     uint32_t h, PixelFormat format, uint32_t flags,
+                                     LayerMetadata metadata, sp<IBinder>* handle,
+                                     sp<IGraphicBufferProducer>* gbp,
+                                     const sp<IBinder>& parentHandle, const sp<Layer>& parentLayer,
+                                     uint32_t* outTransformHint) {
+    .....
+    sp<Layer> layer;
+
+    std::string uniqueName = getUniqueLayerName(name.string());
+
+    bool primaryDisplayOnly = false;
+
+    // window type is WINDOW_TYPE_DONT_SCREENSHOT from SurfaceControl.java
+    // TODO b/64227542
+    if (metadata.has(METADATA_WINDOW_TYPE)) {
+        int32_t windowType = metadata.getInt32(METADATA_WINDOW_TYPE, 0);
+        if (windowType == 441731) {
+            metadata.setInt32(METADATA_WINDOW_TYPE, InputWindowInfo::TYPE_NAVIGATION_BAR_PANEL);
+            primaryDisplayOnly = true;
+        }
+    }
+
+    switch (flags & ISurfaceComposerClient::eFXSurfaceMask) {
+        case ISurfaceComposerClient::eFXSurfaceBufferQueue:
+            //创建sf测layer，本质上创建一个bufferqueue（sf进程和app进程共用）
+            result = createBufferQueueLayer(client, std::move(uniqueName), w, h, flags,
+                                            std::move(metadata), format, handle, gbp, &layer);
+
+            break;
+            ......
+    }
+    .....
+    bool addToCurrentState = callingThreadHasUnscopedSurfaceFlingerAccess();
+    //创建的layer，保存到CurrentState.layersSortedByZ
+    result = addClientLayer(client, *handle, *gbp, layer, parentHandle, parentLayer,
+                            addToCurrentState, outTransformHint);
+    if (result != NO_ERROR) {
+        return result;
+    }
+    .....
+    return result;
+}
+
+/*frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp*/
+
+status_t SurfaceFlinger::addClientLayer(const sp<Client>& client, const sp<IBinder>& handle,
+                                        const sp<IGraphicBufferProducer>& gbc, const sp<Layer>& lbc,
+                                        const sp<IBinder>& parentHandle,
+                                        const sp<Layer>& parentLayer, bool addToCurrentState,
+                                        uint32_t* outTransformHint) {
+    // add this layer to the current state list
+    {
+        Mutex::Autolock _l(mStateLock);
+        sp<Layer> parent;
+        ......
+
+        if (parent == nullptr && addToCurrentState) {
+            //CurrentState.layersSortedByZ代表sf测创建的layer列表
+            mCurrentState.layersSortedByZ.add(lbc);
+        } 
+        .....
+    
+    }
+    .....
+
+    return NO_ERROR;
+}
+
+```
 ## 3.3 绘制（详细内容参考绘制篇）
 创建surface/layer后，这时候layer中的buffer 是空的。接3.2.2的部分最终到renderthrea线程，通过layer申请buffer，绘制，并提交buffer。（下一篇重点分析）。
 ## 3.4 根据layer所属的displayid创建HWC client对应的HWC2::layer
@@ -314,15 +426,17 @@ sf测收到vsync-sf信号后，去当前对应layers数组中查找可以合成�
 ```
 /*frameworks/native/services/surfaceflinger/Surfaceflinger.cpp*/
 
+//收到vsync信号
 void SurfaceFlinger::onMessageReceived(int32_t what, nsecs_t expectedVSyncTime) {
     ATRACE_CALL();
     switch (what) {
         case MessageQueue::INVALIDATE: {
+            //1 处理事务和buffer更换（合成篇重点讲解 ），并最终发送REFRESH消息走到onMessageRefresh方法
             onMessageInvalidate(expectedVSyncTime);
             break;
         }
         case MessageQueue::REFRESH: {
-            //1.收到vsync信号
+            //2 开始合成
             onMessageRefresh();
             break;
         }
@@ -335,6 +449,7 @@ void SurfaceFlinger::onMessageRefresh() {
     mRefreshPending = false;
 
     compositionengine::CompositionRefreshArgs refreshArgs;
+    // 0 这里的mDisplays数组是显示屏幕数量（包括虚拟屏）合成篇重点讲解这个数组的数据如何通过监听热插拔信号拿到。
     const auto& displays = ON_MAIN_THREAD(mDisplays);
      // 1.1 保存当前displaydevice 数组
     refreshArgs.outputs.reserve(displays.size());

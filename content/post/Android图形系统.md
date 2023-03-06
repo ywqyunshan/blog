@@ -55,6 +55,11 @@ URL: "/2023/01/19/"
   * [Graphics Stack Update](https://static.linaro.org/connect/bkk16/Presentations/Wednesday/BKK16-315.pdf)
 
 * [Android Q SurfaceFlinger合成](https://wizzie.top/Blog/2020/10/31/2020/201031_android_SurfaceFlinger2/)
+* [Android 重学系列 SurfaceFlinger的概述](https://www.jianshu.com/p/c954bcceb22a)
+* [AndroidQ 图形系统（11）UI刷新，SurfaceFlinger，Vsync机制总结](https://blog.csdn.net/qq_34211365/article/details/107996767?spm=1001.2014.3001.5501)
+* [Android图形系统系统篇之HWC](https://www.zybuluo.com/ltlovezh/note/1547782)
+* [显示图形系统分析之默认DisplayDevice显示设备加载流程分析](https://juejin.cn/post/7056139802529234958)
+* [Android中的GraphicBuffer同步机制-Fence](https://www.cnblogs.com/brucemengbm/p/6881925.html)
 * [内存管理 —— ION](https://kernel.meizu.com/memory%20management%20-%20ion.html)
 <!--more-->
 
@@ -224,7 +229,7 @@ URL: "/2023/01/19/"
 
 3.[Android图形系统-渲染子系统](https://ywqyunshan.github.io/2023/02/22/)
 
-4.Android图形系统-窗口子系统-合成
+4.[Android图形系统-窗口子系统-合成](https://ywqyunshan.github.io/2023/03/03/)
 
 5.Android图形系统-显示子系统
 

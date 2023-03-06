@@ -14,9 +14,10 @@ categories: [ Tech ]
 URL: "/2023/02/22/"
 ---
 > 渲染主要分申请buffer，cpu/gpu渲染和提交buffer。
-本篇主要讲一下buffer的申请，以及渲染，提交buffer的流程是一样的。
+本篇主要讲一下buffer的申请，以及渲染，提交buffer。
 
 ## 一 渲染子系统架构
+本篇主要讲解app进程如何申请buffer和提交buffer，渲染只涉及renderthread线程构建displaylist，至于真正的gpu渲染，属于另一个学科，只讲一下opengl api的调用，不深入研究。架构图见[Android图形系统-整体架构]()渲染部分。
 ## 二 源码目录
 <style type="text/css">
 .tg  {border-collapse:collapse;border-spacing:0;}
@@ -400,7 +401,7 @@ void CanvasContext::draw() {
     ......
 }
 ```
-### 3.4 申请buffer
+### 3.4 app进程申请buffer
 #### 3.4.1 调用gl库
 接 3.3.1小节的2.1 来到SkiaOpenGLPipeline或者SkiaVulkanPipeline类的getFrame()方法。
 ```
@@ -480,7 +481,7 @@ EGLBoolean egl_window_surface_v2_t::connect()
 }
 ```
 #### 3.4.2 调用libgui库并跨进程创建buffer
-参考这篇文章的[Android画面显示流程分析(3)](ttps://www.jianshu.com/p/3c61375cc15b)3.2，先进入libgui和SF进程建立连接，并最终来到surfaceflinger进程，这里还可以看韦东山课程的这张图
+接上节参考这篇文章的[Android画面显示流程分析(3)](ttps://www.jianshu.com/p/3c61375cc15b)3.2，先进入libgui和SF进程建立连接，并最终来到surfaceflinger进程，这里还可以看韦东山课程的这张图
 ![Buffer申请](/img/buffer%E5%88%9B%E5%BB%BA.jpg)
 
 ```
@@ -712,7 +713,119 @@ void SkCanvas::drawImage(const SkImage* image, SkScalar x, SkScalar y,
     this->onDrawImage2(image, x, y, sampling, paint);
 }
 
+```
+### 3.6 app进程提交buffer
+绘制完成后，接3.3.1 小节的2.3 提交buffer到前台，并唤醒vsync线程，开始合成。
+#### 3.6.1 hwui库和egl库的调用
+接3.3.1 小节的2.3来到SkiaOpenGLPipeline的swapBuffers方法
+```
+/*frameworks/base/libs/hwui/pipeline/skia/SkiaOpenGLPipeline.cpp */
+bool SkiaOpenGLPipeline::swapBuffers(const Frame& frame, bool drew, const SkRect& screenDirty,
+                                     FrameInfo* currentFrameInfo, bool* requireSwap) {
+    GL_CHECKPOINT(LOW);
+    ......
+    *requireSwap = drew || mEglManager.damageRequiresSwap();
+    //调用EglManager
+    if (*requireSwap && (CC_UNLIKELY(!mEglManager.swapBuffers(frame, screenDirty)))) {
+        return false;
+    }
+    .....
+}
+
+/*frameworks/base/libs/hwui/renderthread/EglManager.cpp*/
+bool EglManager::swapBuffers(const Frame& frame, const SkRect& screenDirty) {
+    if (CC_UNLIKELY(Properties::waitForGpuCompletion)) {
+        ATRACE_NAME("Finishing GPU work");
+        fence();
+    }
+
+    EGLint rects[4];
+    frame.map(screenDirty, rects);
+    //调用egl接口
+    eglSwapBuffersWithDamageKHR(mEglDisplay, frame.mSurface, rects, screenDirty.isEmpty() ? 0 : 1);
+    LOG_ALWAYS_FATAL("Encountered EGL error %d %s during rendering", err, egl_error_str(err));
+    // Impossible to hit this, but the compiler doesn't know that
+    return false;
+}
+
+/*frameworks/native/opengl/libs/EGL/eglApi.cpp*/
+EGLBoolean eglSwapBuffersWithDamageKHR(EGLDisplay dpy, EGLSurface draw, EGLint* rects,
+                                       EGLint n_rects) {
+    ATRACE_CALL();
+    clearError();
+
+    egl_connection_t* const cnx = &gEGLImpl;
+    return cnx->platform.eglSwapBuffersWithDamageKHR(dpy, draw, rects, n_rects);
+}
 
 ```
+#### 3.6.2 opengl厂商实现库的调用
+//最终进入opengl实现库（厂商实现），andorid有个开源实现库libagl，但是在11及以上删除了。
+这里按照Android 10的libagl看一下实现
+```
+/*frameworks/native/opengl/libagl/egl.cpp*/ （Android 10 及以下libagl源码目录）
+EGLBoolean eglSwapBuffers(EGLDisplay dpy, EGLSurface draw)
+{
+    if (egl_display_t::is_valid(dpy) == EGL_FALSE)
+        return setError(EGL_BAD_DISPLAY, EGL_FALSE);
 
+    egl_surface_t* d = static_cast<egl_surface_t*>(draw);
+    // 这里d（egl_surface_t）是3.1小节surface转换过来的。是一个AnativeWindow对象
+    d->swapBuffers();
+    ...
 
+    return EGL_TRUE;
+}
+接上，调到了egl_window_surface_v2_t的swapBuffers方法
+
+EGLBoolean egl_window_surface_v2_t::swapBuffers()
+{
+    ....
+    //nativeWindow本质上是一个surface,调用mGraphicBufferProducer的方法
+    nativeWindow->queueBuffer(nativeWindow, buffer, -1);
+    .....
+    buffer = 0;
+    return EGL_TRUE;
+}
+```
+#### 3.6.3 来到libgui的surface调用
+```
+/*frameworks/native/libs/gui/Surface.cpp*/
+int Surface::queueBuffer(android_native_buffer_t* buffer, int fenceFd) {
+    ......
+    sp<Fence> fence(fenceFd >= 0 ? new Fence(fenceFd) : Fence::NO_FENCE);
+    IGraphicBufferProducer::QueueBufferOutput output;
+    IGraphicBufferProducer::QueueBufferInput input(timestamp, isAutoTimestamp,
+            static_cast<android_dataspace>(mDataSpace), crop, mScalingMode,
+            mTransform ^ mStickyTransform, fence, mStickyTransform,
+            mEnableFrameTimestamps);
+
+    status_t err = mGraphicBufferProducer->queueBuffer(i, input, &output);
+    ......
+    return err;
+}
+
+/*frameworks/native/libs/gui/BufferQueueProducer.cpp*/
+status_t BufferQueueProducer::queueBuffer(int slot,
+        const QueueBufferInput &input, QueueBufferOutput *output) {
+    ......
+    //消费者代理
+    sp<IConsumerListener> frameAvailableListener;
+    sp<IConsumerListener> frameReplacedListener;
+        .....
+        // 保存到队列
+        mCore->mQueue.push_back(item);
+        frameAvailableListener = mCore->mConsumerListener;
+        ......
+        
+        if (frameAvailableListener != nullptr) {
+        //通知消费者代理类
+        frameAvailableListener->onFrameAvailable(item);
+        }
+        ......
+    } // Autolock scope
+    .....
+    return NO_ERROR;
+}
+```
+上面最终唤醒vsync线程，发送vsync信号，并开始合成，接上了[Android图形系统-窗口子系统-窗口](https://ywqyunshan.github.io/2023/02/04/)的3.4.1。
