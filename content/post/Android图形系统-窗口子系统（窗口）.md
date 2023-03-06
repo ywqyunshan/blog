@@ -182,7 +182,7 @@ Android8以后默认HWC2接口实现，所以忽略HWC1的分析。
 
 先小结一下，Java测的Surface对象是一个序列化对象，App进程和WMS进程共用，app进程将surface对象aidl声明为out的方式，传入wms进程，通过jni调用native测进程创建后，回传app进程。
 
-### 3.2.1 向系统申请app类型的vsync信号
+#### 3.2.1 向系统申请app类型的vsync信号
 接3.1 来到Activity创建后的，经过下面流程WMS添加view到窗口。引用沧浪之水的一张图看一下。
 ![WMS添加Window过程](/img/WMS%E6%B7%BB%E5%8A%A0window.jpg)
 接上图来到ViewRootImpl的setView方法，最终会向系统申请app类型的vsync信号。
@@ -238,7 +238,7 @@ void scheduleTraversals() {
      }
 }
 ```
-### 3.2.2 收到vsync通知后，调到relayoutWindow方法，将mSurfaceControl序列化对象传入wms进程创建surfae
+#### 3.2.2 收到vsync通知后，调到relayoutWindow方法，将mSurfaceControl序列化对象传入wms进程创建surfae
 
 ```
 /*frameworks/base/core/java/android/view/ViewRootImpl.java*/
@@ -301,7 +301,7 @@ private int relayoutWindow(WindowManager.LayoutParams params, int viewVisibility
         ...
 }
 ```
-### 3.2.3 jni调用创建surface
+#### 3.2.3 jni调用创建surface
 
 接3.2.2 来到wms进程，最终通过jni调用（android_view_SurfaceControl类），来到native cleint端（libgui库）创建SurfaceComposerClient对象并和surfaceflinger进程 connect。
 ```
@@ -343,7 +343,7 @@ status_t createSurface(const String8& name, uint32_t width, uint32_t height, Pix
                                outTransformHint);
 }
 ```
-### 3.2.4 sf测创建layer和app进程的surface一一对应
+#### 3.2.4 sf测创建layer和app进程的surface一一对应
 接3.2.3来到Surfaceflinger进程，在sf测创建layer和bufferqueue对象，最后WMS的createSurfaceControl方法中是通过getSurfaceControl将SurfaceControll传出来的给到app进程共用。
 ![SF创建layer过程](img/sf%E5%88%9B%E5%BB%BAsurface.jpg)
 ```
@@ -418,11 +418,13 @@ status_t SurfaceFlinger::addClientLayer(const sp<Client>& client, const sp<IBind
 }
 
 ```
-## 3.3 绘制（详细内容参考绘制篇）
+
+### 3.3 绘制（详细内容参考绘制篇）
 创建surface/layer后，这时候layer中的buffer 是空的。接3.2.2的部分最终到renderthrea线程，通过layer申请buffer，绘制，并提交buffer。（下一篇重点分析）。
-## 3.4 根据layer所属的displayid创建HWC client对应的HWC2::layer
+
+### 3.4 根据layer所属的displayid创建HWC client对应的HWC2::layer
 sf测收到vsync-sf信号后，去当前对应layers数组中查找可以合成的layer,并创建hwc client对应的hwc2::layer。
-### 3.4.1 sf收到vsync信号后
+#### 3.4.1 sf收到vsync信号后
 ```
 /*frameworks/native/services/surfaceflinger/Surfaceflinger.cpp*/
 
@@ -474,7 +476,7 @@ void SurfaceFlinger::onMessageRefresh() {
    }
 
 ```
-### 3.4.2 HWC client创建需要合成的HWC2::Layer
+#### 3.4.2 HWC client创建需要合成的HWC2::Layer
 接3.4.1 来到CompositionEngine类的prepare方法
 ```
 /*frameworks/native/services/surfaceflinger/CompositionEngine/src/CompositionEngine.cpp*/
