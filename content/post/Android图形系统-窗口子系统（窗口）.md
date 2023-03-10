@@ -492,7 +492,7 @@ void CompositionEngine::present(CompositionRefreshArgs& args) {
         LayerFESet latchedLayers;
 
         for (const auto& output : args.outputs) {
-            // 1 计算各个区域大小以及创建hwc layer
+            // 1 计算各个layer的可视区域以及创建hwc layer
             output->prepare(args, latchedLayers);
         }
     }
@@ -509,7 +509,7 @@ void Output::prepare(const compositionengine::CompositionRefreshArgs& refreshArg
                      LayerFESet& geomSnapshots) {
     ATRACE_CALL();
     ALOGV(__FUNCTION__);
-    // 1.1 
+    // 1.1 计算layer的可视区域和遮挡区域
     rebuildLayerStacks(refreshArgs, geomSnapshots);
 }
 
@@ -546,7 +546,7 @@ void Output::collectVisibleLayers(const compositionengine::CompositionRefreshArg
 OutputLayer* ensureOutputLayer(std::optional<size_t> prevIndex,
                                        const sp<LayerFE>& layerFE) {
 
-            // 1.1.1.1 判断当前的outputlayer 集合里面有没有当前的layer，如果没有则新创建一个
+            // 1.1.1.1 判断当前的outputlayer 集合里面有没有当前的layer，如果没有则新创建一个可视layer
             auto outputLayer = (prevIndex && *prevIndex <= mCurrentOutputLayersOrderedByZ.size())
                     ? std::move(mCurrentOutputLayersOrderedByZ[*prevIndex])
                     : BaseOutput::createOutputLayer(layerFE);

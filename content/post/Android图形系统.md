@@ -60,6 +60,7 @@ URL: "/2023/01/19/"
 * [Android图形系统系统篇之HWC](https://www.zybuluo.com/ltlovezh/note/1547782)
 * [显示图形系统分析之默认DisplayDevice显示设备加载流程分析](https://juejin.cn/post/7056139802529234958)
 * [Android中的GraphicBuffer同步机制-Fence](https://www.cnblogs.com/brucemengbm/p/6881925.html)
+* [专题分纲目录 Android GUI系统之SurfaceFlinger](https://blog.csdn.net/vviccc/article/details/104860616)
 * [内存管理 —— ION](https://kernel.meizu.com/memory%20management%20-%20ion.html)
 <!--more-->
 

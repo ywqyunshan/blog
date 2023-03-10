@@ -540,6 +540,352 @@ void SurfaceFlinger::processDisplayAdded(const wp<IBinder>& displayToken,
 }
 ```
 ### 2.4 sf进程收到vsync-sf信号开始合成
+接[Android图形系统-窗口子系统-窗口](https://ywqyunshan.github.io/2023/02/04/)3.4.1 来到Surfaceflinger的onMessageReceived方法
+```
+/*frameworks/native/services/surfaceflinger/Surfaceflinger.cpp*/
+
+//收到vsync信号
+void SurfaceFlinger::onMessageReceived(int32_t what, nsecs_t expectedVSyncTime) {
+    ATRACE_CALL();
+    switch (what) {
+        case MessageQueue::INVALIDATE: {
+            //1 处理事务和buffer更换，并最终发送REFRESH消息走到onMessageRefresh方法
+            onMessageInvalidate(expectedVSyncTime);
+            break;
+        }
+        case MessageQueue::REFRESH: {
+            //2 开始合成
+            onMessageRefresh();
+            break;
+        }
+    }
+}
+
+
+void SurfaceFlinger::onMessageInvalidate(nsecs_t expectedVSyncTime) {
+    .....
+    {   
+        .....
+        //1.1 layer事务处理，做状态标记
+        refreshNeeded = handleMessageTransaction();
+        //1.2 buffer更换
+        refreshNeeded |= handleMessageInvalidate();
+        .....
+    }
+        //1.3 发MessageQueue::REFRESH消息
+        ......
+        signalRefresh();
+    }
+}
+
+bool SurfaceFlinger::handleMessageTransaction() {
+    ATRACE_CALL();
+    ......
+    if (runHandleTransaction) {
+        handleTransaction(eTransactionMask);
+    } 
+    ......
+    return runHandleTransaction;
+}
+
+void SurfaceFlinger::handleTransaction(uint32_t transactionFlags)
+{
+    ATRACE_CALL();
+
+    // here we keep a copy of the drawing state (that is the state that's
+    // going to be overwritten by handleTransactionLocked()) outside of
+    // mStateLock so that the side-effects of the State assignment
+    // don't happen with mStateLock held (which can cause deadlocks).
+    State drawingState(mDrawingState);
+    ......
+    handleTransactionLocked(transactionFlags);
+    .....
+}
+```
+#### 2.4.1 事务处理
+接上来到surfaceflinger的handleTransactionLocked方法
+这个方法不做实际操作，只做一些事务标记，主要标记有：
+1.每个layer自身是否有变化；
+2.display设备是否有变化；
+3.对layer的TransfromHit（旋转角度）进行设置；
+4.处理layer的增减；
+```
+void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
+{
+
+    ......
+    if ((transactionFlags & eTraversalNeeded) || mForceTraversal) {
+        mForceTraversal = false;
+        mCurrentState.traverse([&](Layer* layer) {
+            .....
+            //1.处理每个layer自身的变化
+            const uint32_t flags = layer->doTransaction(0);
+            if (flags & Layer::eVisibleRegion)
+                mVisibleRegionsDirty = true;
+            ......
+        });
+    }
+
+    /*
+     * Perform display own transactions if needed
+     */
+
+    if (transactionFlags & eDisplayTransactionNeeded) {
+        //2.处理display的增删
+        processDisplayChangesLocked();
+        processDisplayHotplugEventsLocked();
+    }
+   
+    if (transactionFlags & (eTransformHintUpdateNeeded | eDisplayTransactionNeeded)) {
+            .....
+            if (hintDisplay) {
+                //3. 处理layer自身的设备显示方向
+                layer->updateTransformHint(hintDisplay->getTransformHint());
+            }
+        });
+    }
+    
+    // 4 layer的变化-增加
+    if (mLayersAdded) {
+        mLayersAdded = false;
+        // Layers have been added.
+        mVisibleRegionsDirty = true;
+    }
+    // 4 layer的变化-删除
+    if (mLayersRemoved) {
+        mLayersRemoved = false;
+        mVisibleRegionsDirty = true;
+        mDrawingState.traverseInZOrder([&](Layer* layer) {
+            if (mLayersPendingRemoval.indexOf(layer) >= 0) {
+                // this layer is not visible anymore
+                Region visibleReg;
+                visibleReg.set(layer->getScreenBounds());
+                invalidateLayerStack(layer, visibleReg);
+            }
+        });
+    }
+
+    commitInputWindowCommands();
+    //5 mDrawingState值替换为mCurrentState值
+    commitTransaction();
+}
+
+```
+#### 2.4.2 根据设置的事务flag，更换buffer
+接2.4节的1.2来到surfaceflinger的handleMessageInvalidate方法
+```
+bool SurfaceFlinger::handleMessageInvalidate() {
+    ATRACE_CALL();
+    //1 获取layer列表中可以合成的buffer
+    bool refreshNeeded = handlePageFlip();
+
+    if (mVisibleRegionsDirty) {
+        computeLayerBounds();
+    }
+
+    for (auto& layer : mLayersPendingRefresh) {
+        Region visibleReg;
+        visibleReg.set(layer->getScreenBounds());
+        //2 
+        invalidateLayerStack(layer, visibleReg);
+    }
+    mLayersPendingRefresh.clear();
+    return refreshNeeded;
+}
+
+bool SurfaceFlinger::handlePageFlip()
+{
+    ATRACE_CALL();
+    ALOGV("handlePageFlip");
+    mDrawingState.traverse([&](Layer* layer) {
+        if (layer->hasReadyFrame()) {
+            frameQueued = true;
+            if (layer->shouldPresentNow(expectedPresentTime)) {
+                //保存有buffer的layer
+                mLayersWithQueuedFrames.push_back(layer);
+            } else {
+                ATRACE_NAME("!layer->shouldPresentNow()");
+                layer->useEmptyDamage();
+            }
+        } else {
+            layer->useEmptyDamage();
+        }
+    });
+
+    if (!mLayersWithQueuedFrames.empty()) {
+        // mStateLock is needed for latchBuffer as LayerRejecter::reject()
+        // writes to Layer current state. See also b/119481871
+        Mutex::Autolock lock(mStateLock);
+
+        for (auto& layer : mLayersWithQueuedFrames) {
+            //1.1 调用的latchBuffer交换buffer
+            if (layer->latchBuffer(visibleRegions, latchTime, expectedPresentTime)) {
+                mLayersPendingRefresh.push_back(layer);
+            }
+            layer->useSurfaceDamage();
+            if (layer->isBufferLatched()) {
+                newDataLatched = true;
+            }
+        }
+    }
+    ......
+}
+
+/*frameworks/native/services/surfaceflinger/BufferLayer.cpp*/
+bool BufferLayer::latchBuffer(bool& recomputeVisibleRegions, nsecs_t latchTime,
+                              nsecs_t expectedPresentTime) {
+    ATRACE_CALL();
+    .....
+    // 
+    status_t err = updateTexImage(recomputeVisibleRegions, latchTime, expectedPresentTime);
+    return true;
+}
+
+/*frameworks/native/services/surfaceflinger/BufferQueueLayer.cpp*/
+status_t BufferQueueLayer::updateTexImage(bool& recomputeVisibleRegions, nsecs_t latchTime,
+                                          nsecs_t expectedPresentTime) {
+
+    bool autoRefresh;
+    //
+    status_t updateResult = mConsumer->updateTexImage(&r, expectedPresentTime, &autoRefresh,
+                                                      &queuedBuffer, maxFrameNumberToAcquire);
+    .....
+
+    return NO_ERROR;
+}
+/*frameworks/native/services/surfaceflinger/BufferLayerConsumer.cpp*/
+    // 
+status_t BufferLayerConsumer::updateTexImage(BufferRejecter* rejecter, nsecs_t expectedPresentTime,
+                                             bool* autoRefresh, bool* queuedBuffer,
+                                             uint64_t maxFrameNumber) {
+    ATRACE_CALL();
+    .....
+    // 1.1.1 acquireBuffer 
+    status_t err = acquireBufferLocked(&item, expectedPresentTime, maxFrameNumber);
+
+    // 1.1.2 releaseBuffer
+    err = updateAndReleaseLocked(item, &mPendingRelease);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    return err;
+}
+```
+下面的源码分析对应google官方经典图的右半部分
+![BufferQueue 通信过程](/img/bufferqueue_bufferstate.png)
+
+##### 2.4.2.1  BufferQueue的acquireBuffer
+接上接1.1.1来到ConsumerBase的acquireBufferLocked方法
+```
+/* frameworks/native/libs/gui/ConsumerBase.cpp*/
+status_t ConsumerBase::acquireBufferLocked(BufferItem *item,
+        nsecs_t presentWhen, uint64_t maxFrameNumber) {
+    ......
+    status_t err = mConsumer->acquireBuffer(item, presentWhen, maxFrameNumber);
+    ......
+    return OK;
+}
+
+```
+##### 2.4.2.2  BufferQueue的releaseBuffer
+接上接1.1.2来到ConsumerBase的updateAndReleaseLocked方法
+
+```
+status_t BufferLayerConsumer::updateAndReleaseLocked(const BufferItem& item,
+                                                     PendingRelease* pendingRelease) {
+    status_t err = NO_ERROR;
+
+    // release old buffer
+    .....
+   releaseBufferLocked(mCurrentTexture, mCurrentTextureBuffer->getBuffer());
+    ......
+    return err;
+}
+
+/*frameworks/native/libs/gui/ConsumerBase.cpp*/
+status_t ConsumerBase::releaseBufferLocked(
+        int slot, const sp<GraphicBuffer> graphicBuffer,
+        EGLDisplay display, EGLSyncKHR eglFence) {
+    .....
+
+    CB_LOGV("releaseBufferLocked: slot=%d/%" PRIu64,
+            slot, mSlots[slot].mFrameNumber);
+    status_t err = mConsumer->releaseBuffer(slot, mSlots[slot].mFrameNumber,
+            display, eglFence, mSlots[slot].mFence);
+    .....
+    return err;
+}
+```
+#### 2.4.3 合成
+接上小节2.4的第二步骤来到SurfaceFlinger的 onMessageRefresh方法，开始合成
+/*frameworks/native/services/surfaceflinger/SurfaceFlinger.cpp*/
+```
+void SurfaceFlinger::onMessageRefresh() {
+    ATRACE_CALL();
+
+    compositionengine::CompositionRefreshArgs refreshArgs;
+    //mDisplays数据就是2.3小节热插拔保存的显示设备数
+    const auto& displays = ON_MAIN_THREAD(mDisplays);
+    refreshArgs.outputs.reserve(displays.size());
+    //缓存一些数据
+    for (const auto& [_, display] : displays) {
+        refreshArgs.outputs.push_back(display->getCompositionDisplay());
+    }
+    mDrawingState.traverseInZOrder([&refreshArgs](Layer* layer) {
+        if (auto layerFE = layer->getCompositionEngineLayerFE())
+            refreshArgs.layers.push_back(layerFE);
+    });
+    refreshArgs.layersWithQueuedFrames.reserve(mLayersWithQueuedFrames.size());
+    for (sp<Layer> layer : mLayersWithQueuedFrames) {
+        if (auto layerFE = layer->getCompositionEngineLayerFE())
+            refreshArgs.layersWithQueuedFrames.push_back(layerFE);
+    }
+    ....
+    //1.合成前预处理和合成
+    mCompositionEngine->present(refreshArgs);
+    ....
+    //2.
+    postFrame();
+    //3. 合成后的工作
+    postComposition();
+    ......
+}
+
+```
+##### 2.4.3.1 计算每个layer的可视区域
+接上来到CompositionEngine 方法
+```
+frameworks/native/services/surfaceflinger/CompositionEngine/src/CompositionEngine.cpp
+void CompositionEngine::present(CompositionRefreshArgs& args) {
+    ATRACE_CALL();
+    ALOGV(__FUNCTION__);
+    //1 合成前预处理，标记处于drawing状态的layer
+    preComposition(args);
+
+    {
+        LayerFESet latchedLayers;
+
+        for (const auto& output : args.outputs) {
+            //2.接窗口篇的3.4.2 计算每个layer的可视区域并按照Z轴的顺序，依次给可见OutputLayer在HWC中建立HWC2::layerqqqqq111111  
+            output->prepare(args, latchedLayers);
+        }
+    }
+
+    updateLayerStateFromFE(args);
+
+    for (const auto& output : args.outputs) {
+        //3.开始合成
+        output->present(args);
+    }
+}
+
+```
+
+
+
+
+
+
 
 
 

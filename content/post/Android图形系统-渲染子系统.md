@@ -828,4 +828,4 @@ status_t BufferQueueProducer::queueBuffer(int slot,
     return NO_ERROR;
 }
 ```
-上面最终唤醒vsync线程，发送vsync信号，并开始合成，接上了[Android图形系统-窗口子系统-窗口](https://ywqyunshan.github.io/2023/02/04/)的3.4.1。
+上面最终唤醒vsync线程，发送vsync信号，接上了[Android图形系统-窗口子系统-合成](https://ywqyunshan.github.io/2023/03/03/)的3.4.1，并开始合成。
