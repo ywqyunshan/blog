@@ -78,7 +78,7 @@ URL: "/2023/01/19/"
 * 5.接着，sf进程收到vsync-sf信号后，检查layer，并创建hwc layer，并根据hwc layer的合成方式，先gpu合成，后hwc合成，最后送显。
 
 
-![Android图形架构](/img/android图形架构.png)
+![Android图形架构](/img/android%E5%9B%BE%E5%BD%A2%E6%9E%B6%E6%9E%84.png)
 
 ### 2.2 模块源码
 
