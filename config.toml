@@ -16,7 +16,7 @@ home = ["HTML", "RSS", "Algolia"]
   header_image = "img/home-bg-jeep.jpg"
   SEOTitle = ""
   description = ""
-  keyword = "iigeoywq, 博客, 个人网站, 图形学, GIS, 座舱, 车载, Andorid, 系统"
+  keyword = "iigeoywq, button, 博客, 个人网站, 图形学, GIS, 座舱, 车载, Andorid, 系统"
   slogan = ""
 
   image_404 = "img/404-bg.jpg"
@@ -90,6 +90,10 @@ home = ["HTML", "RSS", "Algolia"]
   [[params.friend_link]]
   title = "iigeoywq的博客"
   href =  "https://www.jianshu.com/u/e9dc7e422257"
+
+  [[params.friend_link]]
+  title = "button的博客"
+  href =  "https://www.jianshu.com/u/978b4a822bc3"
 
   [[params.bookmark_link]]
   #title =  "Martin Fowler"
