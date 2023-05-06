@@ -8,21 +8,32 @@ author:     "button"
 date:       2023-04-28
 published: true 
 tags:
-    - Istio 
+    - 工程实战 
 
 categories: [ Tech ]
 URL: "/2023/04/28/"
 ---
 
+
+> 现在做一个车机项目，是基于Linux系统上面的wayland应用，目前有一个瓶颈在于从client到server这边图形数据的传送需要通过glReadPixels()先从gpu回读到cpu，然后通过memcpy到server，其中gpu回读到cpu的耗时很大，大概要几十ms，如果是多屏，那就更多了，而且会堵塞rt线程，目前就是要解决这个瓶颈!
+
 ## 一 前言
-现在做一个车机项目，是基于Linux系统上面的wayland应用，目前有一个瓶颈在于从client到server这边图形数据的传送需要通过glReadPixels()先从gpu回读到cpu，然后通过memcpy到server，其中gpu回读到cpu的耗时很大，大概要几十ms，如果是多屏，那就更多了，而且会堵塞rt线程，目前就是要解决这个瓶颈!
+
+现有方案如下：
+![现有方案](/img/wayland%E5%A4%9A%E5%B1%8F%E6%98%BE%E7%A4%BA%E7%8E%B0%E6%9C%89%E6%96%B9%E6%A1%88.png)
+
+改进方案1如下：
+![改进方案1](/img/wayland%E5%A4%9A%E5%B1%8F%E6%98%BE%E7%A4%BA%E6%94%B9%E8%BF%9B%E6%96%B9%E6%A1%881.png)
+
+改进方案2如下：
+![改进方案2](/img/wayland%E5%A4%9A%E5%B1%8F%E6%98%BE%E7%A4%BA%E6%94%B9%E8%BF%9B%E6%96%B9%E6%A1%882.png)
 
 ## 二 问题
 单刀直入，这里需要解决两个问题：
 
-* 1 Wayland client和wayland server端的内存共享问题；
+* 1 Wayland Client和Wayland Server端的内存共享问题；
 
-* 2 GPU显存和client端的内存打通问题；
+* 2 GPU显存和Client端的内存打通问题；
 
 ## 三 解决方案 
 ### 问题1解决
@@ -127,9 +138,7 @@ wl_surface_attach(w->wl.surface, buf->buffer.window->current->buffer.wl_buffer, 
     wl_surface_commit(w->wl.surface);
 ```
 
-以上代码可以看到，通过GBM，我们创建了一块基于DMA-BUF的wl-buffer，接着就是提交给wayland-server
-
-add，GBM这边的init代码如下：
+以上代码可以看到，通过GBM，我们创建了一块基于DMA-BUF的wl-buffer，接着就是提交给wayland-server add，GBM这边的init代码如下：
 ```
 
 if (!gbm_buffer->gbm_bo) {
@@ -182,13 +191,13 @@ if (!gbm_buffer->gbm_bo) {
 ```
 这样问题1就解决了，实现了基于DMA-BUF的client端到server端的通讯,server端会直接拿到DMA-BUF的FD，可以GPU直接用来显示；
 
-具体相关LInux协议详见[Linux DMA-BUF protocol | Wayland Explorer](https://wayland.app/protocols/linux-dmabuf-unstable-v1)
+具体相关Linux协议详见[Linux DMA-BUF protocol | Wayland Explorer](https://wayland.app/protocols/linux-dmabuf-unstable-v1)
 
 ### 问题2解决
 
 接着解决问题2，问题2会稍微麻烦点，我尝试了两种方式。
 
-#### 方法1——基于LInux协议的MESA_image_dma_buf_export扩展
+#### 方法1——基于Linux协议的MESA_image_dma_buf_export扩展
 ```
 share->image = egl->eglCreateImageKHR(egl_display,
 
@@ -224,7 +233,7 @@ share->image = egl->eglCreateImageKHR(egl_display,
 
 那么方式2来了
 
-#### 方放2——基于LInux协议的MESA_image_dma_buf_import扩展
+#### 方放2——基于Linux协议的MESA_image_dma_buf_import扩展
 ```
 attribs[index++] = EGL_WIDTH;
 

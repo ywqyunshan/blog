@@ -8,7 +8,7 @@ author:     "iigeoywq button"
 date:       2023-02-04
 published: true 
 tags:
-    - Istio 
+    - 系统理论 
 categories: [ Tech ]
 URL: "/2023/02/04/"
 ---
