@@ -58,6 +58,7 @@ URL: "/2023/01/19/"
 * [Android 重学系列 SurfaceFlinger的概述](https://www.jianshu.com/p/c954bcceb22a)
 * [AndroidQ 图形系统（11）UI刷新，SurfaceFlinger，Vsync机制总结](https://blog.csdn.net/qq_34211365/article/details/107996767?spm=1001.2014.3001.5501)
 * [Android图形系统系统篇之HWC](https://www.zybuluo.com/ltlovezh/note/1547782)
+* [Android图形系统篇总结](https://www.jianshu.com/p/180e1b6d0dcd)
 * [显示图形系统分析之默认DisplayDevice显示设备加载流程分析](https://juejin.cn/post/7056139802529234958)
 * [Android中的GraphicBuffer同步机制-Fence](https://www.cnblogs.com/brucemengbm/p/6881925.html)
 * [专题分纲目录 Android GUI系统之SurfaceFlinger](https://blog.csdn.net/vviccc/article/details/104860616)
