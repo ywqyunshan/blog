@@ -1,7 +1,7 @@
 ---
 layout:     post
 
-title:      "Android HAL层演技和实现"
+title:      "Android HAL层演进和实现"
 subtitle:   ""
 excerpt: ""
 author:     "iigeoywq button"
