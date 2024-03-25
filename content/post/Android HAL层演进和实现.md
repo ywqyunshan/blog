@@ -246,7 +246,7 @@ LOC=hardware/interfaces/testhidl/1.0/default/
 ```
 // FIXME: your file license if you have one
 
-cc_library_shared {
+cc_binary {
     // FIXME: this should only be -impl for a passthrough hal.
     // In most cases, to convert this to a binderized implementation, you should:
     // - change '-impl' to '-service' here and make it a cc_binary instead of a
@@ -348,9 +348,9 @@ PRODUCT_PACKAGES += \\
 
 * mmm ./hardware/interface/testhidl/1.0
 
-编译后输出的so目录：
-/out/target/product/xxx/vendor/lib/hw/
-android.hardware.testhidl@1.0-service.so
+service输出的可执行目录：
+/out/target/product/xxx/vendor/bin/hw/
+android.hardware.testhidl@1.0-service
 
 
 ## 4.2 AIDL实现
