@@ -348,7 +348,7 @@ PRODUCT_PACKAGES += \\
 
 * mmm ./hardware/interface/testhidl/1.0
 
-service输出的可执行目录：
+hal service输出的可执行目录：
 /out/target/product/xxx/vendor/bin/hw/
 android.hardware.testhidl@1.0-service
 
