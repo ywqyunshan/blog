@@ -33,7 +33,7 @@ Mesa3ds 提供了OpenGL/OpengGL ES/OpenCL/Vulakn等图形API的实现，包含�
 pip install mako 
 
 # Flex versions >2.5.35 ,Bison version> 2.4.1
-sudo apt-get install msys-flex msys-bison 
+sudo apt-get install flex bison 
 # mesa
 sudo apt-get build-dep mesa
 
