@@ -16,14 +16,14 @@ URL: "/2024/12/21"
 ## 一 中小模型介绍
 在https://huggingface.co/网站上先找了基础规模小于等于5B(十亿)参数的中小模型。
 
-| 模型名称 | 所属机构 | 基础规模 | 原生格式 | 量化格式 | 部署格式 | 主要用途 | HuggingFace地址 | 特点说明 
+| 模型名称 | 所属机构 | 基础规模 | 原生格式 | 量化格式 | 部署格式 | 主要用途 | 模型地址连接 | 特点说明 
 |:--|:--|:--|:--|:--|:--|:--|:--|:--|
-| Phi-3-mini | Microsoft | 3.8B | safetensors | GPTQ(4bit/8bit), AWQ(4bit), exllama2 | ONNX, TensorRT, MLC-LLM | 代码生成,通用推理 | https://huggingface.co/collections/microsoft/phi-3-6626e15e9585a200d2d761e3 | 高性能代码能力,低资源消耗 |
-| internlm2_5-1_8b-chat | 上海AI实验室 | 1.8B | safetensors | GPTQ(4bit/8bit), AWQ(4bit), W8A8 | ONNX, TensorRT, vLLM, MLC-LLM | 中文对话,知识问答 | https://huggingface.co/internlm/internlm2_5-1_8b-chat | 中文理解深入,上下文长度32K |
-| Qwen2.5 | 阿里云 | 3B/1.5B | safetensors | GPTQ(3/4/8bit), AWQ(4bit), SqueezeLLM | ONNX, TensorRT, vLLM, MLC-LLM, FastTransformer | 双语对话,代码生成 | https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct https://huggingface.co/Qwen/Qwen2.5-3B-Instruct | 中英双语优秀,工具调用能力强 |
-| SmolLM2 | MosaicML | 135/360M/1.7B | safetensors | GPTQ(3/4/8bit), AWQ(4bit) | ONNX, TensorRT, MLC-LLM | 轻量级推理 | https://huggingface.co/collections/HuggingFaceTB/smollm2-6723884218bcda64b34d7db9 | 超轻量高效,适合边缘设备 |
-| Gemma-2 | Google | 2B/7B | PyTorchsafetensors, JAX | GPTQ(4bit), AWQ(4bit), GGUF | JAX, ONNX, vLLM, MLC-LLM | 通用推理,教育应用 | https://huggingface.co/collections/google/gemma-2-release-667d6600fd5220e7b967f315 | 开放许可证,文档完善 |
-| Llama-3.2 | Meta | 1B/3B | safetensors | GPTQ(4bit/8bit), AWQ(4bit) | ONNX, TensorRT, vLLM, MLC-LLM | 通用对话,多语言任务 | https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct | 多语言支持,推理增强 |
+| Phi-3-mini | Microsoft | 3.8B | PyTorch/safetensors | GPTQ(4bit/8bit), AWQ(4bit), exllama2 | ONNX, TensorRT, MLC-LLM | 代码生成,通用推理 | https://huggingface.co/collections/microsoft/phi-3-6626e15e9585a200d2d761e3 | 高性能代码能力,低资源消耗 |
+| internlm2_5-1_8b-chat | 上海AI实验室 | 1.8B | PyTorch/safetensors | GPTQ(4bit/8bit), AWQ(4bit), W8A8 | ONNX, TensorRT, vLLM, MLC-LLM | 中文对话,知识问答 | https://huggingface.co/internlm/internlm2_5-1_8b-chat https://github.com/InternLM/InternLM/blob/main/README_zh-CN.md| 中文理解深入,上下文长度32K |
+| Qwen2.5 | 阿里云 | 3B/1.5B/0.5B | PyTorch/safetensors | GPTQ(3/4/8bit), AWQ(4bit), SqueezeLLM | ONNX, TensorRT, vLLM, MLC-LLM, FastTransformer | 双语对话,代码生成 | https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct https://huggingface.co/Qwen/Qwen2.5-3B-Instruct https://qwen.readthedocs.io/zh-cn/latest/index.html| 中英双语优秀,工具调用能力强 |
+| SmolLM2 | MosaicML | 135/360M/1.7B | PyTorch/safetensors | GPTQ(3/4/8bit), AWQ(4bit) | ONNX, TensorRT, MLC-LLM | 轻量级推理 | https://huggingface.co/collections/HuggingFaceTB/smollm2-6723884218bcda64b34d7db9 | 超轻量高效,适合边缘设备 |
+| Gemma-2 | Google | 2B/7B | PyTorch/safetensors/JAX | GPTQ(4bit), AWQ(4bit), GGUF | JAX, ONNX, vLLM, MLC-LLM | 通用推理,教育应用 | https://huggingface.co/collections/google/gemma-2-release-667d6600fd5220e7b967f315 | 开放许可证,文档完善 |
+| Llama-3.2 | Meta | 1B/3B | PyTorch/safetensors | GPTQ(4bit/8bit), AWQ(4bit) | ONNX, TensorRT, vLLM, MLC-LLM | 通用对话,多语言任务 | https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct https://www.llama.com/docs/model-cards-and-prompt-formats/llama3_2| 多语言支持,推理增强 |
 
 * 基础规模 (Base Model Size)
     * 小型模型(1B以下): SmolLM2的135M和360M版本,适合资源受限场景
@@ -92,8 +92,8 @@ conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/m
 conda config --set show_channel_urls yes
 
 ```
-### 3.3 Rust（本地环境安装）
-编译Android so库的时候需要，pc 部署不需要
+### 3.3 Rust（本地环境安装）仅Android部署需要
+编译mlc-llm源码以及Android so库的时候需要，pc部署不需要
 ```
  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup-init.sh
 
@@ -108,12 +108,12 @@ conda config --set show_channel_urls yes
  rustc --version
  cargo --version
 ```
-### 3.4 NDK（本地环境）并配置mlc环境变量
+### 3.4 NDK（本地环境） 仅Android部署需要
 
-编译android库需要，pc不需要
+编译android so库需要，pc部署不需要
 ndk下载参考https://developer.android.com/studio?hl=zh-cn
 
-配置
+配置NDK和MCL_HOME环境变量
 ```
 vi ~/.bashrc 
 ## 输入
